@@ -25,30 +25,33 @@ logger = logging.getLogger(__name__)
 def start(update, context):
     """Begin a round of the quiz."""
     if "current_question" not in context.chat_data:
-        update.message.reply_text("Okay, boomer.")
-        get_ask_question(update, context)
+        update.message.reply_text("Okay, starting a game!")
+        context.chat_data["questions_completed"] = 0
+        progress_game(update, context)
     else:
         update.message.reply_text("You're already in a round!")
 
 
-def get_ask_question(update, context):
-    with sqlite3.connect("clues.db") as con:
-        cur = con.cursor()
-        cur.execute("""
-            SELECT clues.id, clue, answer
-            FROM clues
-            JOIN documents ON clues.id = documents.id
-            ORDER BY RANDOM()
-            LIMIT 1
-            """)
-        clue = cur.fetchone()
-        context.chat_data["current_question"] = clue[1]
-        # Strips the alternate answers and whitespace.
-        context.chat_data["current_answer"] = re.sub(
-            r'\([^)]*\)', '', clue[2]).rstrip().lower()
-        context.chat_data["hint_level"] = 0
-        context.chat_data["questions_completed"] = 0
-    update.message.reply_text(context.chat_data["current_question"])
+def progress_game(update, context):
+    if context.chat_data["questions_completed"] == 5:
+        stop(update, context)
+    else:
+        with sqlite3.connect("clues.db") as con:
+            cur = con.cursor()
+            cur.execute("""
+                SELECT clues.id, clue, answer
+                FROM clues
+                JOIN documents ON clues.id = documents.id
+                ORDER BY RANDOM()
+                LIMIT 1
+                """)
+            clue = cur.fetchone()
+            context.chat_data["current_question"] = clue[1]
+            # Strips the alternate answers and whitespace.
+            context.chat_data["current_answer"] = re.sub(
+                r'\([^)]*\)', '', clue[2]).rstrip().lower()
+            context.chat_data["hint_level"] = 0
+        update.message.reply_text(context.chat_data["current_question"] + f" (Answer: {context.chat_data['current_answer']})")
 
 
 def stop(update, context):
@@ -57,7 +60,8 @@ def stop(update, context):
         update.message.reply_text("You're not in a round.")
     else:
         del context.chat_data["current_question"]
-        update.message.reply_text("Okay, boomer.")
+        update.message.reply_text("Game over!")
+        # TODO: Print scores.
 
 
 def check(update, context):
@@ -66,9 +70,16 @@ def check(update, context):
         # TODO: Sanity Check: Make sure current answer exists.
         # If not, reset state because things are BROKEN.
         if context.chat_data["current_answer"] in update.message.text.lower():
-            update.message.reply_text("You right.")
+            update.message.reply_text("Correct!")
+            # TODO: Add points to person who got it right.
             context.chat_data["questions_completed"] += 1
-            # TODO: Move onto the next question via progression method.
+            progress_game(update, context)
+
+
+def timeout(update, context):
+    """End the question if timeout is reached."""
+    update.message.reply_text(f"No one got it. The answer was {context.chat_data['current_answer']}.")
+    progress_game(update, context)
 
 
 def error(update, context):
