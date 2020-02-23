@@ -89,14 +89,14 @@ def progress_game(update, context):
         question_ann = f"""🗂️Category: {context.chat_data['current_category']}
 🙋Answer: {context.chat_data['current_question']}
 🤔Hint: `{context.chat_data['current_hint']}`"""
-        update.message.reply_text(question_ann, quote=False)
+        update.message.reply_text(question_ann, quote=False, parse_mode=ParseMode.MARKDOWN)
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
             give_hint, HINT_TIME, context=(context, update), name=update.message.chat_id)
 
 
 def stop(update, context):
-    """Begin a round of the quiz."""
+    """Stop the quiz."""
     if "current_question" not in context.chat_data:
         update.message.reply_text("You're not in a round.")
     else:
@@ -105,6 +105,14 @@ def stop(update, context):
         update.message.reply_text(
             f"Game over! The question was {context.chat_data['current_answer']}.", quote=False)
         print_score(update, context)
+
+
+def end(update, context):
+    """Gracefully end the quiz."""
+    cancel_hints(update, context)
+    del context.chat_data["current_question"]
+    update.message.reply_text(
+        f"Game over!", quote=False)
 
 
 def calcpoints(hint_level):
