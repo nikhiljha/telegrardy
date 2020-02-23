@@ -17,11 +17,29 @@ import re
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, PicklePersistence
 from telegram import ParseMode
 
+# Configurables
+HINT_TIME = 10  # Time between each hint. 1/3 of round length.
+
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
+
+
+# Stickers
+STICKER_CORRECT = ["CAACAgIAAxkBAAJSeF5Sx9p2bi5G_3cyKJSUcYLCW-FeAAL1AAPtuN8KXRvw26jzLsIYBA",
+                   "CAACAgIAAxkBAAJShF5SyFpQ6tVhvqiWQeuRnGSTWB5SAAKDOgAC4KOCB1SRzGnF4yiuGAQ",
+                   "CAACAgIAAxkBAAJSh15SyHNdnpHdEflJLb3EFPYBg1zrAAJ0OgAC4KOCB47dXJW0xkd_GAQ",
+                   "CAACAgIAAxkBAAJSil5SyIVm5CCNVHR0iMmfkx3-C2SVAAL-SgAC4KOCB6EttTVVFWl1GAQ",
+                   "CAACAgIAAxkBAAJSjV5SyJKUvkTBZTBBWpGeyhUzLFi4AAIYAQAC7bjfCm0ZdOkaW95CGAQ"]
+STICKER_INCORRECT = ["CAACAgIAAxkBAAJSe15Sx-6uV_6MmbOBGbG9iU5AiB35AAL2AAPtuN8KIM8EQoBuMkQYBA",
+                     "CAACAgIAAxkBAAJSkF5SyJ6ixnOAlo5zPx1OcJRJvdUXAAIKAQAC7bjfCpSVxdA3xIbNGAQ",
+                     "CAACAgIAAxkBAAJSk15SyLvjlnu6mCxRaLBAmez_v_wfAAL-AAPtuN8Kbz6GfiLA87cYBA",
+                     "CAACAgIAAxkBAAJSll5SyNFbDJx1fiR8uasjLpPQyoldAAJtOgAC4KOCB4S4QaXnOEWHGAQ"]
+STICKER_ERROR = "CAACAgIAAxkBAAJSfl5SyAbGce8ZVwiHHAABZD-9RU98dAACFwEAAu243wpXxgT5_08N5xgE"
+STICKER_QUESTION = "CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77pR2Nyg3apGAQ"
 
 
 def start(update, context):
@@ -40,14 +58,15 @@ def progress_game(update, context):
     if context.chat_data["questions_completed"] == 5:
         stop(update, context)
     else:
-        # TODO: List the topic.
         context.chat_data["questions_completed"] += 1
         with sqlite3.connect("clues.db") as con:
             cur = con.cursor()
             cur.execute("""
-                SELECT clues.id, clue, answer
+                SELECT clues.id, clue, answer, category
                 FROM clues
                 JOIN documents ON clues.id = documents.id
+                JOIN classifications ON clues.id = classifications.clue_id
+                JOIN categories ON classifications.category_id = categories.id
                 ORDER BY RANDOM()
                 LIMIT 1
                 """)
@@ -60,10 +79,13 @@ def progress_game(update, context):
                 r'\([^)]*\)', '', clue[2]).rstrip().lower()
             context.chat_data["current_hint"] = re.sub(
                 r'\w', '-', context.chat_data["current_answer"])
+            context.chat_data["current_category"] = clue[3]
             context.chat_data["hint_level"] = 0
-        update.message.reply_text(
-            context.chat_data["current_question"] +
-            f"\n(Hint: {context.chat_data['current_hint']})", quote=False)
+        # TODO: How do you make this indent not look super weird.
+        question_ann = f"""🗂️Category: {context.chat_data['current_category']}
+🙋Answer: {context.chat_data['current_question']}
+🤔Hint: `{context.chat_data['current_hint']}`"""
+        update.message.reply_text(question_ann, quote=False)
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
             give_hint, 15, context=(context, update), name=update.message.chat_id)
@@ -76,7 +98,8 @@ def stop(update, context):
     else:
         cancel_hints(update, context)
         del context.chat_data["current_question"]
-        update.message.reply_text("Game over!", quote=False)
+        update.message.reply_text(
+            f"Game over! The question was {context.chat_data['current_answer']}.", quote=False)
         print_score(update, context)
 
 
@@ -127,7 +150,9 @@ def check(update, context):
         # If not, reset state because things are BROKEN.
         if context.chat_data["current_answer"] in update.message.text.lower():
             cancel_hints(update, context)
-            update.message.reply_text("Correct!")
+            update.message.reply_sticker()
+            update.message.reply_text(
+                f"Correct! The question was **{context.job.context[0].chat_data['current_answer']}**.")
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
                 context.chat_data["current_scores"][update.effective_user.first_name] += pts
@@ -149,7 +174,7 @@ def timeout(context):
     """End the question if timeout is reached."""
     cancel_hints(context.job.context[1], context.job.context[0])
     context.job.context[1].message.reply_text(
-        f"No one got it. The answer was {context.job.context[0].chat_data['current_answer']}.", quote=False)
+        f"No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.", quote=False)
     print_score(context.job.context[1], context.job.context[0])
     progress_game(context.job.context[1], context.job.context[0])
 
