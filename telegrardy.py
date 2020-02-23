@@ -156,7 +156,7 @@ def check(update, context):
             update.message.reply_sticker(
                 random.choice(STICKER_CORRECT), quote=False)
             update.message.reply_text(
-                f"Correct! The question was **{context.job.context[0].chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
+                f"Correct! The question was **{context.chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
                 context.chat_data["current_scores"][update.effective_user.first_name] += pts
