@@ -39,7 +39,8 @@ STICKER_INCORRECT = ["CAACAgIAAxkBAAJSe15Sx-6uV_6MmbOBGbG9iU5AiB35AAL2AAPtuN8KIM
                      "CAACAgIAAxkBAAJSk15SyLvjlnu6mCxRaLBAmez_v_wfAAL-AAPtuN8Kbz6GfiLA87cYBA",
                      "CAACAgIAAxkBAAJSll5SyNFbDJx1fiR8uasjLpPQyoldAAJtOgAC4KOCB4S4QaXnOEWHGAQ"]
 STICKER_ERROR = "CAACAgIAAxkBAAJSfl5SyAbGce8ZVwiHHAABZD-9RU98dAACFwEAAu243wpXxgT5_08N5xgE"
-STICKER_QUESTION = "CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77pR2Nyg3apGAQ"
+STICKER_QUESTION = ["CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77pR2Nyg3apGAQ",
+                    "CAACAgIAAxkBAAJSmV5Syt_34HKUVWm05vAC__OODIDvAAL4AAPtuN8KBIJRy2NIxsAYBA"]
 
 
 def start(update, context):
@@ -81,6 +82,8 @@ def progress_game(update, context):
                 r'\w', '-', context.chat_data["current_answer"])
             context.chat_data["current_category"] = clue[3]
             context.chat_data["hint_level"] = 0
+        update.message.reply_sticker(
+            random.choice(STICKER_QUESTION), quote=False)
         # TODO: How do you make this indent not look super weird.
         question_ann = f"""🗂️Category: {context.chat_data['current_category']}
 🙋Answer: {context.chat_data['current_question']}
@@ -150,9 +153,10 @@ def check(update, context):
         # If not, reset state because things are BROKEN.
         if context.chat_data["current_answer"] in update.message.text.lower():
             cancel_hints(update, context)
-            update.message.reply_sticker()
+            update.message.reply_sticker(
+                random.choice(STICKER_CORRECT), quote=False)
             update.message.reply_text(
-                f"Correct! The question was **{context.job.context[0].chat_data['current_answer']}**.")
+                f"Correct! The question was **{context.job.context[0].chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
                 context.chat_data["current_scores"][update.effective_user.first_name] += pts
@@ -167,14 +171,18 @@ def print_score(update, context):
     message = "Current scores..."
     for x in context.chat_data["current_scores"]:
         message += f"\n {x}: {context.chat_data['current_scores'][x]} points"
+    if len(context.chat_data["current_scores"]) == 0:
+        message += "\n No one has scored yet. 👀"
     update.message.reply_text(message, quote=False)
 
 
 def timeout(context):
     """End the question if timeout is reached."""
     cancel_hints(context.job.context[1], context.job.context[0])
+    context.job.context[1].message.reply_sticker(
+        random.choice(STICKER_INCORRECT), quote=False)
     context.job.context[1].message.reply_text(
-        f"No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.", quote=False)
+        f"No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.", quote=False, parse_mode=ParseMode.MARKDOWN)
     print_score(context.job.context[1], context.job.context[0])
     progress_game(context.job.context[1], context.job.context[0])
 
