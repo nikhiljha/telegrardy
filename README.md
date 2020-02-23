@@ -1,9 +1,14 @@
 # telegrardy
-/[ˈteləˌɡrärdiː](http://ipa-reader.xyz/)/ - Play the J! Archive as a Telegram Bot [UNSTABLE + WIP]
+/[ˈteləˌɡrärdiː](http://ipa-reader.xyz/)/ - Play the J! Archive as a Telegram Bot [WIP]
+
+![](https://img.shields.io/github/issues/nikhiljha/telegrardy)
+![](https://img.shields.io/github/forks/nikhiljha/telegrardy)
+![](https://img.shields.io/github/stars/nikhiljha/telegrardy)
+![](https://img.shields.io/github/license/nikhiljha/telegrardy)
 
 ## Usage
-1. Ask @Botfather to make you a bot, set the key as TELEGRAM_TOKEN in your env.
+1. Ask [@BotFather](https://t.me/Botfather) to make you a bot, and set the key as `TELEGRAM_TOKEN` in your environment.
 2. Use the [J! Archive scraper](https://github.com/nikhiljha/jeopardy-parser) to obtain the Jeopardy clue database.
-3. Put the `clues.db` into this folder.
-4. `pip install -r requirements.txt`
-5. `python telegrardy.py`
+3. Put the `clues.db` that you scraped into this folder.
+4. Install requirements: `pip install -r requirements.txt`
+5. Run the bot: `python telegrardy.py`
