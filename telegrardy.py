@@ -58,7 +58,7 @@ def start(update, context):
 def progress_game(update, context):
     """The current question is over, progress the game."""
     if context.chat_data["questions_completed"] == 5:
-        stop(update, context)
+        end(update, context)
     else:
         context.chat_data["questions_completed"] += 1
         with sqlite3.connect("clues.db") as con:
@@ -103,7 +103,7 @@ def stop(update, context):
         cancel_hints(update, context)
         del context.chat_data["current_question"]
         update.message.reply_text(
-            f"Game over! The question was {context.chat_data['current_answer']}.", quote=False)
+            f"Game over! The question was **{context.chat_data['current_answer']}**.", quote=False, parse_mode=ParseMode.MARKDOWN)
         print_score(update, context)
 
 
