@@ -60,10 +60,10 @@ def progress_game(update, context):
                 r'\w', '-', context.chat_data["current_answer"])
             context.chat_data["hint_level"] = 0
         update.message.reply_text(
-            context.chat_data["current_question"] + f"\n(Hint: {context.chat_data['current_hint']})")
+            context.chat_data["current_question"] + f"\n(Hint: {context.chat_data['current_hint']})", quote=False)
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
-            give_hint, 10, context=(context, update), name=update.message.chat_id)
+            give_hint, 15, context=(context, update), name=update.message.chat_id)
 
 
 def stop(update, context):
@@ -73,7 +73,7 @@ def stop(update, context):
     else:
         cancel_hints(update, context)
         del context.chat_data["current_question"]
-        update.message.reply_text("Game over!")
+        update.message.reply_text("Game over!", quote=False)
         print_score(update, context)
 
 
@@ -103,10 +103,10 @@ def give_hint(context):
         chat_id=context.job.name, text="`" + context.job.context[0].chat_data["current_hint"] + "`", parse_mode=ParseMode.MARKDOWN)
     if context.job.context[0].chat_data["hint_level"] > 1:
         context.job_queue.run_once(
-            timeout, 7, context=context.job.context, name=context.job.name)
+            timeout, 15, context=context.job.context, name=context.job.name)
     else:
         context.job_queue.run_once(
-            give_hint, 7, context=context.job.context, name=context.job.name)
+            give_hint, 15, context=context.job.context, name=context.job.name)
 
 
 def cancel_hints(update, context):
@@ -121,6 +121,7 @@ def check(update, context):
         # TODO: Sanity Check: Make sure current answer exists.
         # If not, reset state because things are BROKEN.
         if context.chat_data["current_answer"] in update.message.text.lower():
+            cancel_hints(update, context)
             update.message.reply_text("Correct!")
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
@@ -137,13 +138,14 @@ def print_score(update, context):
     message = "Current scores..."
     for x in context.chat_data["current_scores"]:
         message += f"\n {x}: {context.chat_data['current_scores'][x]} points"
-    update.message.reply_text(message)
+    update.message.reply_text(message, quote=False)
 
 
 def timeout(context):
     """End the question if timeout is reached."""
+    cancel_hints(context.job.context[1], context.job.context[0])
     context.job.context[1].message.reply_text(
-        f"No one got it. The answer was {context.job.context[0].chat_data['current_answer']}.")
+        f"No one got it. The answer was {context.job.context[0].chat_data['current_answer']}.", quote=False)
     print_score(context.job.context[1], context.job.context[0])
     progress_game(context.job.context[1], context.job.context[0])
 
