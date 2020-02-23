@@ -13,7 +13,7 @@ import logging
 import sqlite3
 import re
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, PicklePersistence
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -22,14 +22,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 
-# Define a few command handlers. These usually take the two arguments update and
-# context. Error handlers also receive the raised TelegramError object in error.
 def start(update, context):
-    """Send a message when the command /start is issued."""
-    update.message.reply_text('Welcome to Telegrardy!')
-
-
-def startround(update, context):
     """Begin a round of the quiz."""
     if "current_question" not in context.chat_data:
         update.message.reply_text("Okay, boomer.")
@@ -58,7 +51,7 @@ def get_ask_question(update, context):
     update.message.reply_text(context.chat_data["current_question"])
 
 
-def stopround(update, context):
+def stop(update, context):
     """Begin a round of the quiz."""
     if "current_question" not in context.chat_data:
         update.message.reply_text("You're not in a round.")
@@ -67,7 +60,7 @@ def stopround(update, context):
         update.message.reply_text("Okay, boomer.")
 
 
-def echo(update, context):
+def check(update, context):
     """Check if the message matched the answer."""
     if "current_question" in context.chat_data:
         # TODO: Sanity Check: Make sure current answer exists.
@@ -85,21 +78,24 @@ def error(update, context):
 
 def main():
     """Start the bot."""
+    # Use Persistence
+    persistence = PicklePersistence(filename='data.pkl')
+
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(os.getenv('TELEGRAM_TOKEN'), use_context=True)
+    updater = Updater(os.getenv('TELEGRAM_TOKEN'),
+                      persistence=persistence, use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("round", startround))
-    dp.add_handler(CommandHandler("stop", stopround))
+    dp.add_handler(CommandHandler("stop", stop))
 
     # on noncommand i.e message - check if it was correct
-    dp.add_handler(MessageHandler(Filters.text, echo))
+    dp.add_handler(MessageHandler(Filters.text, check))
 
     # log all errors
     dp.add_error_handler(error)

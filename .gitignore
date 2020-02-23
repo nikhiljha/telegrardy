@@ -166,5 +166,6 @@ $RECYCLE.BIN/
 # Project Specific Ignores
 
 clues.db
+data.pkl
 
 # End of Project Specific Ignores
