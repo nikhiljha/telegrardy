@@ -18,7 +18,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Pickl
 from telegram import ParseMode
 
 # Configurables
-HINT_TIME = 10  # Time between each hint. 1/3 of round length.
+HINT_TIME = 20  # Time between each hint. 1/3 of round length.
 
 
 # Enable logging
@@ -91,7 +91,7 @@ def progress_game(update, context):
         update.message.reply_text(question_ann, quote=False)
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
-            give_hint, 15, context=(context, update), name=update.message.chat_id)
+            give_hint, HINT_TIME, context=(context, update), name=update.message.chat_id)
 
 
 def stop(update, context):
@@ -120,7 +120,7 @@ def give_hint(context):
     """Print the current hint in the chat."""
     # TODO: Find a fast (non-loopy) way
     ans = context.job.context[0].chat_data["current_answer"]
-    anslen = len(ans) // 4
+    anslen = len(ans) // 3
     if anslen == 0:
         anslen = 1
     for x in range(anslen):
@@ -133,10 +133,10 @@ def give_hint(context):
         chat_id=context.job.name, text="`" + context.job.context[0].chat_data["current_hint"] + "`", parse_mode=ParseMode.MARKDOWN)
     if context.job.context[0].chat_data["hint_level"] > 1:
         context.job_queue.run_once(
-            timeout, 15, context=context.job.context, name=context.job.name)
+            timeout, HINT_TIME, context=context.job.context, name=context.job.name)
     else:
         context.job_queue.run_once(
-            give_hint, 15, context=context.job.context, name=context.job.name)
+            give_hint, HINT_TIME, context=context.job.context, name=context.job.name)
 
 
 def cancel_hints(update, context):
