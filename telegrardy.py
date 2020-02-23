@@ -15,6 +15,7 @@ import sqlite3
 import re
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, PicklePersistence
+from telegram.ext.filters import MergedFilter
 from telegram import ParseMode
 
 # Configurables
@@ -194,6 +195,11 @@ def error(update, context):
 
 def main():
     """Start the bot."""
+    # Chat whitelist.
+    whitelist = None
+    if os.getenv("TG_SINGLE_CHAT"):
+        whitelist = Filters.chat(chat_id=int(os.getenv("TG_SINGLE_CHAT")))
+    
     # Use Persistence
     persistence = PicklePersistence(filename='data.pkl')
 
@@ -207,11 +213,11 @@ def main():
     dp = updater.dispatcher
 
     # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("stop", stop))
+    dp.add_handler(CommandHandler("start", start, filters=whitelist))
+    dp.add_handler(CommandHandler("stop", stop, filters=whitelist))
 
     # on noncommand i.e message - check if it was correct
-    dp.add_handler(MessageHandler(Filters.text, check))
+    dp.add_handler(MessageHandler(MergedFilter(Filters.text, and_filter=whitelist), check))
 
     # log all errors
     dp.add_error_handler(error)

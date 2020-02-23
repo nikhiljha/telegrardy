@@ -12,3 +12,6 @@
 3. Put the `clues.db` that you scraped into this folder.
 4. Install requirements: `pip install -r requirements.txt`
 5. Run the bot: `python telegrardy.py`
+
+## Configuration
+You can set the `TG_SINGLE_CHAT` environment variable to the chat ID of your choice to only enable the bot in a single chat or for a single user.
