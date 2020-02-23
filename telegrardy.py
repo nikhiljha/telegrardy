@@ -5,7 +5,7 @@
 Play the J! Archive as a Telegram Bot
 
 Usage:
-TBD
+See README
 """
 
 import os
@@ -36,10 +36,12 @@ def start(update, context):
 
 
 def progress_game(update, context):
+    """The current question is over, progress the game."""
     if context.chat_data["questions_completed"] == 5:
         stop(update, context)
     else:
         # TODO: List the topic.
+        context.chat_data["questions_completed"] += 1
         with sqlite3.connect("clues.db") as con:
             cur = con.cursor()
             cur.execute("""
@@ -60,7 +62,8 @@ def progress_game(update, context):
                 r'\w', '-', context.chat_data["current_answer"])
             context.chat_data["hint_level"] = 0
         update.message.reply_text(
-            context.chat_data["current_question"] + f"\n(Hint: {context.chat_data['current_hint']})", quote=False)
+            context.chat_data["current_question"] +
+            f"\n(Hint: {context.chat_data['current_hint']})", quote=False)
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
             give_hint, 15, context=(context, update), name=update.message.chat_id)
@@ -88,6 +91,7 @@ def calcpoints(hint_level):
 
 
 def give_hint(context):
+    """Print the current hint in the chat."""
     # TODO: Find a fast (non-loopy) way
     ans = context.job.context[0].chat_data["current_answer"]
     anslen = len(ans) // 4
@@ -110,6 +114,7 @@ def give_hint(context):
 
 
 def cancel_hints(update, context):
+    """Cancel all scheduled tasks for the chat."""
     q = context.job_queue.get_jobs_by_name(update.message.chat_id)
     for x in q:
         x.schedule_removal()
@@ -128,7 +133,6 @@ def check(update, context):
                 context.chat_data["current_scores"][update.effective_user.first_name] += pts
             else:
                 context.chat_data["current_scores"][update.effective_user.first_name] = pts
-            context.chat_data["questions_completed"] += 1
             print_score(update, context)
             progress_game(update, context)
 
