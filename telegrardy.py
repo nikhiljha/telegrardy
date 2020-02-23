@@ -10,6 +10,8 @@ TBD
 
 import os
 import logging
+import sqlite3
+import re
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -27,9 +29,53 @@ def start(update, context):
     update.message.reply_text('Welcome to Telegrardy!')
 
 
+def startround(update, context):
+    """Begin a round of the quiz."""
+    if "current_question" not in context.chat_data:
+        update.message.reply_text("Okay, boomer.")
+        get_ask_question(update, context)
+    else:
+        update.message.reply_text("You're already in a round!")
+
+
+def get_ask_question(update, context):
+    with sqlite3.connect("clues.db") as con:
+        cur = con.cursor()
+        cur.execute("""
+            SELECT clues.id, clue, answer
+            FROM clues
+            JOIN documents ON clues.id = documents.id
+            ORDER BY RANDOM()
+            LIMIT 1
+            """)
+        clue = cur.fetchone()
+        context.chat_data["current_question"] = clue[1]
+        # Strips the alternate answers and whitespace.
+        context.chat_data["current_answer"] = re.sub(
+            r'\([^)]*\)', '', clue[2]).rstrip()
+        context.chat_data["hint_level"] = 0
+        context.chat_data["questions_completed"] = 0
+    update.message.reply_text(context.chat_data["current_question"])
+
+
+def stopround(update, context):
+    """Begin a round of the quiz."""
+    if "current_question" not in context.chat_data:
+        update.message.reply_text("You're not in a round.")
+    else:
+        del context.chat_data["current_question"]
+        update.message.reply_text("Okay, boomer.")
+
+
 def echo(update, context):
-    """Echo the user message."""
-    update.message.reply_text(update.message.text)
+    """Check if the message matched the answer."""
+    if "current_question" in context.chat_data:
+        # TODO: Sanity Check: Make sure current answer exists.
+        # If not, reset state because things are BROKEN.
+        if context.chat_data["current_answer"] in update.message.text:
+            update.message.reply_text("You right.")
+            context.chat_data["questions_completed"] += 1
+            # TODO: Move onto the next question via progression method.
 
 
 def error(update, context):
@@ -49,8 +95,10 @@ def main():
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("round", startround))
+    dp.add_handler(CommandHandler("stop", stopround))
 
-    # on noncommand i.e message - echo the message on Telegram
+    # on noncommand i.e message - check if it was correct
     dp.add_handler(MessageHandler(Filters.text, echo))
 
     # log all errors
