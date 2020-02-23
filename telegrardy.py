@@ -45,7 +45,7 @@ def get_ask_question(update, context):
         context.chat_data["current_question"] = clue[1]
         # Strips the alternate answers and whitespace.
         context.chat_data["current_answer"] = re.sub(
-            r'\([^)]*\)', '', clue[2]).rstrip()
+            r'\([^)]*\)', '', clue[2]).rstrip().lower()
         context.chat_data["hint_level"] = 0
         context.chat_data["questions_completed"] = 0
     update.message.reply_text(context.chat_data["current_question"])
@@ -65,7 +65,7 @@ def check(update, context):
     if "current_question" in context.chat_data:
         # TODO: Sanity Check: Make sure current answer exists.
         # If not, reset state because things are BROKEN.
-        if context.chat_data["current_answer"] in update.message.text:
+        if context.chat_data["current_answer"] in update.message.text.lower():
             update.message.reply_text("You right.")
             context.chat_data["questions_completed"] += 1
             # TODO: Move onto the next question via progression method.
