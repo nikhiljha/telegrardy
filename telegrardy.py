@@ -156,7 +156,7 @@ def check(update, context):
             update.message.reply_sticker(
                 random.choice(STICKER_CORRECT), quote=False)
             update.message.reply_text(
-                f"Correct! The question was **{context.chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
+                f"✅Correct! The question was **{context.chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
                 context.chat_data["current_scores"][update.effective_user.first_name] += pts
@@ -168,7 +168,7 @@ def check(update, context):
 
 def print_score(update, context):
     """Print the scores."""
-    message = "Current scores..."
+    message = "💯Current scores..."
     for x in context.chat_data["current_scores"]:
         message += f"\n {x}: {context.chat_data['current_scores'][x]} points"
     if len(context.chat_data["current_scores"]) == 0:
@@ -182,7 +182,7 @@ def timeout(context):
     context.job.context[1].message.reply_sticker(
         random.choice(STICKER_INCORRECT), quote=False)
     context.job.context[1].message.reply_text(
-        f"No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.", quote=False, parse_mode=ParseMode.MARKDOWN)
+        f"❌No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.", quote=False, parse_mode=ParseMode.MARKDOWN)
     print_score(context.job.context[1], context.job.context[0])
     progress_game(context.job.context[1], context.job.context[0])
 
