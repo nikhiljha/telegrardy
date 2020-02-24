@@ -46,6 +46,7 @@ STICKER_QUESTION = ["CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77
 
 def start(update, context):
     """Begin a round of the quiz."""
+    # TODO: Make the round length configurable, with a maximum.
     if "current_question" not in context.chat_data:
         update.message.reply_text("Okay, starting a game!")
         context.chat_data["current_scores"] = {}
@@ -64,7 +65,7 @@ def progress_game(update, context):
         with sqlite3.connect("clues.db") as con:
             cur = con.cursor()
             cur.execute("""
-                SELECT clues.id, clue, answer, category
+                SELECT clues.id, clue, answer, category, value
                 FROM clues
                 JOIN documents ON clues.id = documents.id
                 JOIN classifications ON clues.id = classifications.clue_id
@@ -74,11 +75,12 @@ def progress_game(update, context):
                 """)
             clue = cur.fetchone()
             context.chat_data["current_question"] = clue[1]
+            context.chat_data["current_value"] = clue[4]
             # Strips the alternate answers and whitespace.
             # TODO: Get rid of "a" or "the" at the beginning.
             # TODO: Also remove periods.
             context.chat_data["current_answer"] = re.sub(
-                r'\([^)]*\)', '', clue[2]).rstrip().lower()
+                r'\([^)]*\)', '', clue[2]).strip().lower()
             context.chat_data["current_hint"] = re.sub(
                 r'\w', '-', context.chat_data["current_answer"])
             context.chat_data["current_category"] = clue[3]
@@ -87,6 +89,7 @@ def progress_game(update, context):
             random.choice(STICKER_QUESTION), quote=False)
         # TODO: How do you make this indent not look super weird.
         question_ann = f"""🗂️Category: {context.chat_data['current_category']}
+🤑Value: {context.chat_data['current_value']}
 🙋Answer: {context.chat_data['current_question']}
 🤔Hint: `{context.chat_data['current_hint']}`"""
         update.message.reply_text(question_ann, quote=False, parse_mode=ParseMode.MARKDOWN)
@@ -118,9 +121,9 @@ def end(update, context):
 def calcpoints(hint_level):
     """Calculate how many points to give."""
     levels = {
-        0: 5,
-        1: 3,
-        2: 1
+        0: 1.00,
+        1: 0.80,
+        2: 0.60
     }
     return levels.get(hint_level, 0)
 
@@ -132,7 +135,7 @@ def give_hint(context):
     anslen = len(ans) // 3
     if anslen == 0:
         anslen = 1
-    for x in range(anslen):
+    for _ in range(anslen):
         letter = random.randrange(0, len(ans))
         context.job.context[0].chat_data["current_hint"] = context.job.context[0].chat_data["current_hint"][:letter] + \
             context.job.context[0].chat_data["current_answer"][letter] + \
@@ -168,9 +171,9 @@ def check(update, context):
                 f"✅Correct! The question was **{context.chat_data['current_answer']}**.", parse_mode=ParseMode.MARKDOWN)
             pts = calcpoints(context.chat_data["hint_level"])
             if update.effective_user.first_name in context.chat_data["current_scores"]:
-                context.chat_data["current_scores"][update.effective_user.first_name] += pts
+                context.chat_data["current_scores"][update.effective_user.first_name] += pts * context.chat_data["current_value"]
             else:
-                context.chat_data["current_scores"][update.effective_user.first_name] = pts
+                context.chat_data["current_scores"][update.effective_user.first_name] = pts * context.chat_data["current_value"]
             print_score(update, context)
             progress_game(update, context)
 
@@ -225,7 +228,7 @@ def main():
     dp.add_handler(CommandHandler("stop", stop, filters=whitelist))
 
     # on noncommand i.e message - check if it was correct
-    dp.add_handler(MessageHandler(MergedFilter(Filters.text, and_filter=whitelist), check))
+    dp.add_handler(MessageHandler(Filters.text, check))
 
     # log all errors
     dp.add_error_handler(error)
