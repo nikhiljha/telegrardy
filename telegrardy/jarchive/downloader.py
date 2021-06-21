@@ -4,25 +4,18 @@ import os
 import urllib.request, urllib.error, urllib.parse
 import time
 import concurrent.futures as futures
+from loguru import logger
 
 current_working_directory = os.getcwd()
 archive_folder = os.path.join(current_working_directory, "j-archive")
 SECONDS_BETWEEN_REQUESTS = 2
 ERROR_MSG = "ERROR: No game"
 NUM_THREADS = 2  # Be conservative
-try:
-    import multiprocessing
-
-    # Since it's a lot of IO let's double # of actual cores
-    NUM_THREADS = 8
-    print("Using {} threads".format(NUM_THREADS))
-except (ImportError, NotImplementedError):
-    pass
 
 
 def create_archive_dir():
     if not os.path.isdir(archive_folder):
-        print("Making %s" % archive_folder)
+        logger.info(f"creating {archive_folder} folder")
         os.mkdir(archive_folder)
 
 
@@ -49,13 +42,13 @@ def download_and_save_page(page):
         html = download_page(page)
         if ERROR_MSG in html:
             # Now we stop
-            print("Finished downloading. Now parse.")
+            logger.info("thread finished downloading! ready to parse.")
             return False
         elif html:
             save_file(html, destination_file_path)
             time.sleep(SECONDS_BETWEEN_REQUESTS)  # Remember to be kind to the server
     else:
-        print("Already downloaded %s" % destination_file_path)
+        logger.warning(f"already downloaded {destination_file_path}, skipping")
     return True
 
 
@@ -65,12 +58,12 @@ def download_page(page):
     try:
         response = urllib.request.urlopen(url)
         if response.code == 200:
-            print("Downloading %s" % url)
+            logger.info(f"downloading {url}")
             html = response.read().decode('utf-8')
         else:
-            print("Invalid URL: %s" % url)
+            logger.error(f"invalid URL: {url}")
     except urllib.error.HTTPError:
-        print("failed to open %s" % url)
+        logger.error(f"failed to open {url}")
     return html
 
 
@@ -79,4 +72,4 @@ def save_file(html, filename):
         with open(filename, "w") as f:
             f.write(html)
     except IOError:
-        print("Couldn't write to file %s" % filename)
+        logger.critical(f"failed to write to file {filename}")

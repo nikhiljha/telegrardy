@@ -88,5 +88,6 @@ $RECYCLE.BIN/
 clues.db
 data.pkl
 j-archive/
+.env
 
 # End of Project Specific Ignores

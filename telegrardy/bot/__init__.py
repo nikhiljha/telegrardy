@@ -95,7 +95,7 @@ def progress_game(update, context):
         )
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
-            give_hint, HINT_TIME, context=(context, update), name=update.message.chat_id
+            give_hint, HINT_TIME, context=(context, update), name=str(update.message.chat.id)
         )
 
 
@@ -159,7 +159,7 @@ def give_hint(context):
 
 def cancel_hints(update, context):
     """Cancel all scheduled tasks for the chat."""
-    q = context.job_queue.get_jobs_by_name(update.message.chat_id)
+    q = context.job_queue.get_jobs_by_name(str(update.message.chat.id))
     for x in q:
         x.schedule_removal()
 
@@ -232,7 +232,7 @@ def poll():
 
     # log all errors
     dp.add_error_handler(
-        lambda update, context: logger.error("(on update %s) %s", update, context.error)
+        lambda update, context: logger.error(f"(on update {update}) {context.error}")
     )
 
     # start the bot

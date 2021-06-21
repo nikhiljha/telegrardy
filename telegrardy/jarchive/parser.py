@@ -2,6 +2,7 @@
 
 from bs4 import BeautifulSoup
 from glob import glob
+from loguru import logger
 
 import os
 import re
@@ -12,53 +13,51 @@ def parse():
     """Loop thru all the games and parse them."""
     cwd = os.getcwd()
     NUMBER_OF_FILES = len(os.path.join(cwd, "j-archive"))
-    print("Parsing", NUMBER_OF_FILES, "files")
-    sql = None
-    if True:
-        sql = sqlite3.connect("clues.db")
-        sql.execute("""PRAGMA foreign_keys = ON;""")
-        sql.execute(
-            """CREATE TABLE airdates(
-            game INTEGER PRIMARY KEY,
-            airdate TEXT
-        );"""
-        )
-        sql.execute(
-            """CREATE TABLE documents(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            clue TEXT,
-            answer TEXT
-        );"""
-        )
-        sql.execute(
-            """CREATE TABLE categories(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT UNIQUE
-        );"""
-        )
-        sql.execute(
-            """CREATE TABLE clues(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            game INTEGER,
-            round INTEGER,
-            value INTEGER,
-            FOREIGN KEY(id) REFERENCES documents(id),
-            FOREIGN KEY(game) REFERENCES airdates(game)
-        );"""
-        )
-        sql.execute(
-            """CREATE TABLE classifications(
-            clue_id INTEGER,
-            category_id INTEGER,
-            FOREIGN KEY(clue_id) REFERENCES clues(id),
-            FOREIGN KEY(category_id) REFERENCES categories(id)
-        );"""
-        )
+    logger.info(f"parsing {NUMBER_OF_FILES} files")
+    sql = sqlite3.connect("clues.db")
+    sql.execute("""PRAGMA foreign_keys = ON;""")
+    sql.execute(
+        """CREATE TABLE airdates(
+        game INTEGER PRIMARY KEY,
+        airdate TEXT
+    );"""
+    )
+    sql.execute(
+        """CREATE TABLE documents(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        clue TEXT,
+        answer TEXT
+    );"""
+    )
+    sql.execute(
+        """CREATE TABLE categories(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT UNIQUE
+    );"""
+    )
+    sql.execute(
+        """CREATE TABLE clues(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game INTEGER,
+        round INTEGER,
+        value INTEGER,
+        FOREIGN KEY(id) REFERENCES documents(id),
+        FOREIGN KEY(game) REFERENCES airdates(game)
+    );"""
+    )
+    sql.execute(
+        """CREATE TABLE classifications(
+        clue_id INTEGER,
+        category_id INTEGER,
+        FOREIGN KEY(clue_id) REFERENCES clues(id),
+        FOREIGN KEY(category_id) REFERENCES categories(id)
+    );"""
+    )
     for i, file_name in enumerate(glob(os.path.join(cwd, "j-archive/*.html")), 1):
         with open(os.path.abspath(file_name)) as f:
             parse_game(f, sql, i)
     sql.commit()
-    print("All done")
+    logger.info("finished parsing")
 
 
 def parse_game(f, sql, gid):
@@ -132,9 +131,6 @@ def insert(sql, clue):
         clue[6] = clue[6].replace("\\'", "'")
     if '\\"' in clue[6]:
         clue[6] = clue[6].replace('\\"', '"')
-    if not sql:
-        print(clue)
-        return
     sql.execute(
         "INSERT OR IGNORE INTO airdates VALUES(?, ?);",
         (
