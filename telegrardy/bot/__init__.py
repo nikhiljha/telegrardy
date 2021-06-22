@@ -180,11 +180,11 @@ def check(update, context):
             if update.effective_user.first_name in context.chat_data["current_scores"]:
                 context.chat_data["current_scores"][
                     update.effective_user.first_name
-                ] += (pts * context.chat_data["current_value"])
+                ] += int(pts * int(context.chat_data["current_value"]))
             else:
                 context.chat_data["current_scores"][
                     update.effective_user.first_name
-                ] = (pts * context.chat_data["current_value"])
+                ] = int(pts * int(context.chat_data["current_value"]))
             print_score(update, context)
             progress_game(update, context)
 
