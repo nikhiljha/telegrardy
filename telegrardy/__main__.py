@@ -4,8 +4,8 @@
 import os
 import click
 from loguru import logger
-from telegrardy import bot
-from telegrardy.jarchive import jarchive
+from telegrardy import bot as botmodule
+from telegrardy.clues import clues
 
 
 @click.group()
@@ -15,7 +15,7 @@ def main():
 
 
 @click.command()
-def run():
+def bot():
     """run the telegram bot"""
     if not os.path.isfile("clues.db"):
         logger.critical(
@@ -23,10 +23,10 @@ def run():
         )
         exit(1)
 
-    bot.poll()
+    botmodule.poll()
 
 
 if __name__ == "__main__":
-    main.add_command(jarchive)
-    main.add_command(run)
+    main.add_command(bot)
+    main.add_command(clues)
     main()

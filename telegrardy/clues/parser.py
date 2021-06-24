@@ -78,7 +78,9 @@ def parse_game(f, sql, gid):
         return
     category = r.find("td", class_="category_name").get_text()
     text = r.find("td", class_="clue_text").get_text()
-    answer = BeautifulSoup(r.find("div", onmouseover=True).get("onmouseover"), "html.parser")
+    answer = BeautifulSoup(
+        r.find("div", onmouseover=True).get("onmouseover"), "html.parser"
+    )
     answer = answer.find("em").get_text()
     # False indicates no preset value for a clue
     insert(sql, [gid, airdate, 3, category, False, text, answer])

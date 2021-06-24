@@ -19,8 +19,8 @@
 
 1. Ask [@BotFather](https://t.me/Botfather) to make you a bot, and set the key as `TELEGRAM_TOKEN` in your environment.
 2. Install this package: `poetry install` (from inside this folder)
-3. Use the built-in J! Archive scraper to download and then parse the Jeopardy clue database: `python -m telegrardy jarchive download` followed by `python -m telegrardy jarchive parse`
-4. Run the bot: `python -m telegrardy run`
+3. Use the built-in J! Archive scraper to download and then parse the Jeopardy clue database: `python -m telegrardy clues download` followed by `python -m telegrardy clues parse`
+4. Run the bot: `python -m telegrardy bot`
 
 ## Configuration
 

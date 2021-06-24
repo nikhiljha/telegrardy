@@ -95,7 +95,10 @@ def progress_game(update, context):
         )
         # TODO: There has to be a better way to send context and update...
         context.job_queue.run_once(
-            give_hint, HINT_TIME, context=(context, update), name=str(update.message.chat.id)
+            give_hint,
+            HINT_TIME,
+            context=(context, update),
+            name=str(update.message.chat.id),
         )
 
 
@@ -212,6 +215,7 @@ def timeout(context):
     )
     print_score(context.job.context[1], context.job.context[0])
     progress_game(context.job.context[1], context.job.context[0])
+
 
 def poll():
     # chat whitelist

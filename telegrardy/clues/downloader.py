@@ -59,7 +59,7 @@ def download_page(page):
         response = urllib.request.urlopen(url)
         if response.code == 200:
             logger.info(f"downloading {url}")
-            html = response.read().decode('utf-8')
+            html = response.read().decode("utf-8")
         else:
             logger.error(f"invalid URL: {url}")
     except urllib.error.HTTPError:
