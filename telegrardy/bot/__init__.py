@@ -224,7 +224,7 @@ def poll():
         whitelist = Filters.chat(chat_id=int(os.getenv("TG_SINGLE_CHAT")))
 
     persistence = PicklePersistence(filename="data.pkl")
-    updater = Updater(os.getenv("TELEGRAM_TOKEN"), persistence=persistence)
+    updater = Updater(os.getenv("TG_TOKEN"), persistence=persistence)
     dp = updater.dispatcher
 
     # on different commands - answer in Telegram
