@@ -1,0 +1,38 @@
+game_start = "Okay, starting a game!"
+game_start_err = "I can't run two games at once, /stop the current game first."
+question_ann = """\
+    🗂️Category: {{ data.category }}
+    🤑Value: {{ data.value }}
+    🙋Clue: {{ data.question }}
+    🤔Hint: `{{ data.hint }}`
+    """
+question_correct = "✅Correct! The answer was **{{ data.answer }}**."
+question_timeout = "❌No one got it. The answer was **{{ data.answer }}**."
+score_display = "💯Current scores..."
+score_template = "\n {{ name }}: {{ points }} points"
+score_null = "\n No one has scored yet. 👀"
+game_stop = "Game over! The answer was {{ data.answer }}."
+game_stop_err = "No game to stop."
+game_end = "Game over!"
+
+[stickers]
+correct = [
+    "CAACAgIAAxkBAAJSeF5Sx9p2bi5G_3cyKJSUcYLCW-FeAAL1AAPtuN8KXRvw26jzLsIYBA",
+    "CAACAgIAAxkBAAJShF5SyFpQ6tVhvqiWQeuRnGSTWB5SAAKDOgAC4KOCB1SRzGnF4yiuGAQ",
+    "CAACAgIAAxkBAAJSh15SyHNdnpHdEflJLb3EFPYBg1zrAAJ0OgAC4KOCB47dXJW0xkd_GAQ",
+    "CAACAgIAAxkBAAJSil5SyIVm5CCNVHR0iMmfkx3-C2SVAAL-SgAC4KOCB6EttTVVFWl1GAQ",
+    "CAACAgIAAxkBAAJSjV5SyJKUvkTBZTBBWpGeyhUzLFi4AAIYAQAC7bjfCm0ZdOkaW95CGAQ",
+]
+incorrect = [
+    "CAACAgIAAxkBAAJSe15Sx-6uV_6MmbOBGbG9iU5AiB35AAL2AAPtuN8KIM8EQoBuMkQYBA",
+    "CAACAgIAAxkBAAJSkF5SyJ6ixnOAlo5zPx1OcJRJvdUXAAIKAQAC7bjfCpSVxdA3xIbNGAQ",
+    "CAACAgIAAxkBAAJSk15SyLvjlnu6mCxRaLBAmez_v_wfAAL-AAPtuN8Kbz6GfiLA87cYBA",
+    "CAACAgIAAxkBAAJSll5SyNFbDJx1fiR8uasjLpPQyoldAAJtOgAC4KOCB4S4QaXnOEWHGAQ",
+]
+error = [
+    "CAACAgIAAxkBAAJSfl5SyAbGce8ZVwiHHAABZD-9RU98dAACFwEAAu243wpXxgT5_08N5xgE",
+]
+question = [
+    "CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77pR2Nyg3apGAQ",
+    "CAACAgIAAxkBAAJSmV5Syt_34HKUVWm05vAC__OODIDvAAL4AAPtuN8KBIJRy2NIxsAYBA",
+]
