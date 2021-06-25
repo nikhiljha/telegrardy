@@ -10,6 +10,9 @@ python-telegram-bot = "^13.6"
 beautifulsoup4 = "^4.9.3"
 loguru = "^0.5.3"
 click = "^8.0.1"
+tomlkit = "^0.7.2"
+Jinja2 = "^3.0.1"
+prometheus-client = "^0.11.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

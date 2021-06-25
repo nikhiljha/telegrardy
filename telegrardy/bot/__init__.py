@@ -1,9 +1,12 @@
 import random
-import sqlite3
-import re
+from telegrardy import strings
+from telegrardy.bot import clues
+from jinja2 import Environment
 import os
 
 from loguru import logger
+from prometheus_client import Gauge, Counter
+from prometheus_client import start_http_server as prometheus_server
 from telegram import ParseMode
 from telegram.ext import (
     Updater,
@@ -13,42 +16,27 @@ from telegram.ext import (
     PicklePersistence,
 )
 
+tpl = Environment()
+stickers = strings["stickers"]
+
 # Configurables
 HINT_TIME = 20  # Time between each hint. 1/3 of round length.
 
-# Stickers
-STICKER_CORRECT = [
-    "CAACAgIAAxkBAAJSeF5Sx9p2bi5G_3cyKJSUcYLCW-FeAAL1AAPtuN8KXRvw26jzLsIYBA",
-    "CAACAgIAAxkBAAJShF5SyFpQ6tVhvqiWQeuRnGSTWB5SAAKDOgAC4KOCB1SRzGnF4yiuGAQ",
-    "CAACAgIAAxkBAAJSh15SyHNdnpHdEflJLb3EFPYBg1zrAAJ0OgAC4KOCB47dXJW0xkd_GAQ",
-    "CAACAgIAAxkBAAJSil5SyIVm5CCNVHR0iMmfkx3-C2SVAAL-SgAC4KOCB6EttTVVFWl1GAQ",
-    "CAACAgIAAxkBAAJSjV5SyJKUvkTBZTBBWpGeyhUzLFi4AAIYAQAC7bjfCm0ZdOkaW95CGAQ",
-]
-STICKER_INCORRECT = [
-    "CAACAgIAAxkBAAJSe15Sx-6uV_6MmbOBGbG9iU5AiB35AAL2AAPtuN8KIM8EQoBuMkQYBA",
-    "CAACAgIAAxkBAAJSkF5SyJ6ixnOAlo5zPx1OcJRJvdUXAAIKAQAC7bjfCpSVxdA3xIbNGAQ",
-    "CAACAgIAAxkBAAJSk15SyLvjlnu6mCxRaLBAmez_v_wfAAL-AAPtuN8Kbz6GfiLA87cYBA",
-    "CAACAgIAAxkBAAJSll5SyNFbDJx1fiR8uasjLpPQyoldAAJtOgAC4KOCB4S4QaXnOEWHGAQ",
-]
-STICKER_ERROR = (
-    "CAACAgIAAxkBAAJSfl5SyAbGce8ZVwiHHAABZD-9RU98dAACFwEAAu243wpXxgT5_08N5xgE"
-)
-STICKER_QUESTION = [
-    "CAACAgIAAxkBAAJSgV5SyEmOE5Iwyeuti6t8wohqmd1yAAJuOgAC4KOCB77pR2Nyg3apGAQ",
-    "CAACAgIAAxkBAAJSmV5Syt_34HKUVWm05vAC__OODIDvAAL4AAPtuN8KBIJRy2NIxsAYBA",
-]
-
+# Monitoring
+g_inprog = Gauge("games_in_progress", "number of games in progress")
+c_errors = Counter('games_failed_updates', "telegram update errors")
 
 def start(update, context):
     """Begin a round of the quiz."""
     # TODO: Make the round length configurable, with a maximum.
-    if "current_question" not in context.chat_data:
-        update.message.reply_text("Okay, starting a game!")
-        context.chat_data["current_scores"] = {}
+    if "question" not in context.chat_data:
+        update.message.reply_text(strings["game_start"])
+        context.chat_data["scores"] = {}
         context.chat_data["questions_completed"] = 0
         progress_game(update, context)
+        g_inprog.inc()
     else:
-        update.message.reply_text("You're already in a round!")
+        update.message.reply_text(strings["game_start_err"])
 
 
 def progress_game(update, context):
@@ -57,39 +45,12 @@ def progress_game(update, context):
         end(update, context)
     else:
         context.chat_data["questions_completed"] += 1
-        with sqlite3.connect("clues.db") as con:
-            cur = con.cursor()
-            cur.execute(
-                """
-                SELECT clues.id, clue, answer, category, value
-                FROM clues
-                JOIN documents ON clues.id = documents.id
-                JOIN classifications ON clues.id = classifications.clue_id
-                JOIN categories ON classifications.category_id = categories.id
-                ORDER BY RANDOM()
-                LIMIT 1
-                """
-            )
-            clue = cur.fetchone()
-            context.chat_data["current_question"] = clue[1]
-            context.chat_data["current_value"] = clue[4]
-            # Strips the alternate answers and whitespace.
-            # TODO: Get rid of "a" or "the" at the beginning.
-            # TODO: Also remove periods.
-            context.chat_data["current_answer"] = (
-                re.sub(r"\([^)]*\)", "", clue[2]).strip().lower()
-            )
-            context.chat_data["current_hint"] = re.sub(
-                r"\w", "-", context.chat_data["current_answer"]
-            )
-            context.chat_data["current_category"] = clue[3]
-            context.chat_data["hint_level"] = 0
-        update.message.reply_sticker(random.choice(STICKER_QUESTION), quote=False)
-        # TODO: How do you make this indent not look super weird.
-        question_ann = f"""🗂️Category: {context.chat_data['current_category']}
-🤑Value: {context.chat_data['current_value']}
-🙋Answer: {context.chat_data['current_question']}
-🤔Hint: `{context.chat_data['current_hint']}`"""
+        context.chat_data.update(clues.random_question())
+        context.chat_data["hint_level"] = 0
+        update.message.reply_sticker(random.choice(stickers["question"]), quote=False)
+        question_ann = tpl.from_string(strings["question_ann"]).render(
+            data=context.chat_data
+        )
         update.message.reply_text(
             question_ann, quote=False, parse_mode=ParseMode.MARKDOWN
         )
@@ -104,13 +65,14 @@ def progress_game(update, context):
 
 def stop(update, context):
     """Stop the quiz."""
-    if "current_question" not in context.chat_data:
-        update.message.reply_text("You're not in a round.")
+    if "question" not in context.chat_data:
+        update.message.reply_text(strings["game_stop_err"])
     else:
+        g_inprog.dec(1)
         cancel_hints(update, context)
-        del context.chat_data["current_question"]
+        del context.chat_data["question"]
         update.message.reply_text(
-            f"Game over! The question was **{context.chat_data['current_answer']}**.",
+            tpl.from_string(strings["game_stop"]).render(data=context.chat_data),
             quote=False,
             parse_mode=ParseMode.MARKDOWN,
         )
@@ -119,9 +81,10 @@ def stop(update, context):
 
 def end(update, context):
     """Gracefully end the quiz."""
+    g_inprog.dec(1)
     cancel_hints(update, context)
-    del context.chat_data["current_question"]
-    update.message.reply_text(f"Game over!", quote=False)
+    del context.chat_data["question"]
+    update.message.reply_text(strings["game_end"], quote=False)
 
 
 def calcpoints(hint_level):
@@ -133,21 +96,21 @@ def calcpoints(hint_level):
 def give_hint(context):
     """Print the current hint in the chat."""
     # TODO: Find a fast (non-loopy) way
-    ans = context.job.context[0].chat_data["current_answer"]
+    ans = context.job.context[0].chat_data["answer"]
     anslen = len(ans) // 3
     if anslen == 0:
         anslen = 1
     for _ in range(anslen):
         letter = random.randrange(0, len(ans))
-        context.job.context[0].chat_data["current_hint"] = (
-            context.job.context[0].chat_data["current_hint"][:letter]
-            + context.job.context[0].chat_data["current_answer"][letter]
-            + context.job.context[0].chat_data["current_hint"][letter + 1 :]
+        context.job.context[0].chat_data["hint"] = (
+            context.job.context[0].chat_data["hint"][:letter]
+            + context.job.context[0].chat_data["answer"][letter]
+            + context.job.context[0].chat_data["hint"][letter + 1 :]
         )
     context.job.context[0].chat_data["hint_level"] += 1
     context.bot.send_message(
         chat_id=context.job.name,
-        text="`" + context.job.context[0].chat_data["current_hint"] + "`",
+        text="`" + context.job.context[0].chat_data["hint"] + "`",
         parse_mode=ParseMode.MARKDOWN,
     )
     if context.job.context[0].chat_data["hint_level"] > 1:
@@ -169,36 +132,42 @@ def cancel_hints(update, context):
 
 def check(update, context):
     """Check if the message matched the answer."""
-    if "current_question" in context.chat_data:
+    if "question" in context.chat_data:
         # TODO: Sanity Check: Make sure current answer exists.
         # If not, reset state because things are BROKEN.
-        if context.chat_data["current_answer"] in update.message.text.lower():
+        if context.chat_data["answer"] in update.message.text.lower():
             cancel_hints(update, context)
-            update.message.reply_sticker(random.choice(STICKER_CORRECT), quote=False)
+            update.message.reply_sticker(
+                random.choice(stickers["correct"]), quote=False
+            )
             update.message.reply_text(
-                f"✅Correct! The question was **{context.chat_data['current_answer']}**.",
+                tpl.from_string(strings["question_correct"]).render(
+                    data=context.chat_data
+                ),
                 parse_mode=ParseMode.MARKDOWN,
             )
             pts = calcpoints(context.chat_data["hint_level"])
-            if update.effective_user.first_name in context.chat_data["current_scores"]:
-                context.chat_data["current_scores"][
-                    update.effective_user.first_name
-                ] += int(pts * int(context.chat_data["current_value"]))
+            if update.effective_user.first_name in context.chat_data["scores"]:
+                context.chat_data["scores"][update.effective_user.first_name] += int(
+                    pts * int(context.chat_data["value"])
+                )
             else:
-                context.chat_data["current_scores"][
-                    update.effective_user.first_name
-                ] = int(pts * int(context.chat_data["current_value"]))
+                context.chat_data["scores"][update.effective_user.first_name] = int(
+                    pts * int(context.chat_data["value"])
+                )
             print_score(update, context)
             progress_game(update, context)
 
 
 def print_score(update, context):
     """Print the scores."""
-    message = "💯Current scores..."
-    for x in context.chat_data["current_scores"]:
-        message += f"\n {x}: {context.chat_data['current_scores'][x]} points"
-    if len(context.chat_data["current_scores"]) == 0:
-        message += "\n No one has scored yet. 👀"
+    message = strings["score_display"]
+    for x in context.chat_data["scores"]:
+        message += tpl.from_string(strings["score_template"]).render(
+            name=x, points=context.chat_data["scores"][x]
+        )
+    if len(context.chat_data["scores"]) == 0:
+        message += strings["score_null"]
     update.message.reply_text(message, quote=False)
 
 
@@ -206,10 +175,12 @@ def timeout(context):
     """End the question if timeout is reached."""
     cancel_hints(context.job.context[1], context.job.context[0])
     context.job.context[1].message.reply_sticker(
-        random.choice(STICKER_INCORRECT), quote=False
+        random.choice(stickers["incorrect"]), quote=False
     )
     context.job.context[1].message.reply_text(
-        f"❌No one got it. The question was **{context.job.context[0].chat_data['current_answer']}**.",
+        tpl.from_string(strings["question_timeout"]).render(
+            data=context.job.context[0].chat_data
+        ),
         quote=False,
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -217,7 +188,14 @@ def timeout(context):
     progress_game(context.job.context[1], context.job.context[0])
 
 
+def handle_error(update, context):
+    logger.error(f"(on update {update}) {context.error}")
+    c_errors.inc()
+
 def poll():
+    # monitoring
+    prometheus_server(8080)
+
     # chat whitelist
     whitelist = None
     if os.getenv("TG_SINGLE_CHAT"):
